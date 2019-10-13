@@ -29,28 +29,53 @@ class TypeMeta(BaseType, type):
 class Type(BaseType, metaclass=TypeMeta):
     universe = 0
 
-    def __init__(self, name=None, *, universe=None):
+    def __init__(self, name=None, *, expr=None, universe=None):
         assert bool(name) ^ bool(universe)
         self.name = name
         if name:
             self.type = Type
         self.universe = universe
+        self.expr = expr
 
-    def __call__(self, name):
-        result = Instance(self, name)
+    def __call__(self, name, expr=None):
+        if expr is None:
+            expr = FunctionApplication(self)
+        result = Instance(self, name, expr)
         result.type = self
         return result
 
     type = TypeDescriptor()
 
+    def __eq__(self, other):
+        return (
+                isinstance(other, BaseType)
+                and self.universe == other.universe
+                and self.expr == other.expr
+        )
+
 
 class Instance:
-    def __init__(self, typ, name):
+    def __init__(self, typ, name, expr):
         self.name = name
         self.type = typ
+        self.expr = expr
 
     def __repr__(self):
         return self.name
+
+    def __eq__(self, other):
+        return (
+                isinstance(other, Instance)
+                and self.expr == other.expr
+        )
+
+
+class FunctionApplication:
+    def __init__(self, *args):
+        self.args = args
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.args == other.args
 
 
 def autofunc(f):
@@ -60,7 +85,8 @@ def autofunc(f):
     def func(*args):
         typ = signature.return_annotation
         name = f'{f.__name__}({", ".join(arg.name for arg in args)})'
-        return typ(name)
+        expr = FunctionApplication(f.__code__, *args)
+        return typ(name, expr=expr)
 
     return check_types(func)
 
@@ -121,6 +147,36 @@ def main():
     c = composed(A('a'))
     print(c)
     assert c.type is C
+
+    test_dependant_types()
+
+
+def test_dependant_types():
+    """
+    constant List   : Type → Type
+
+    constant cons   : Π T : Type, T → List T → List T
+    constant nil    : Π T : Type, List T
+    constant head   : Π T : Type, List T → T
+    constant tail   : Π T : Type, List T → List T
+    constant append : Π T : Type, List T → List T → List T
+    """
+
+    @autofunc
+    def List(T: Type) -> Type: ...
+
+    def cons(T: Type):
+        @autofunc
+        def cons(t: T, lst: List(T)) -> List(T): ...
+
+        return cons
+
+    def nil(T: Type):
+        return List(T)('nil')
+
+    A = Type('A')
+    a = A('a')
+    print(cons(A)(a, cons(A)(a, nil(A))))
 
 
 if __name__ == '__main__':
