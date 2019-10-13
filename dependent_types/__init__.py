@@ -1,3 +1,7 @@
+import functools
+import inspect
+
+
 class TypeDescriptor:
     def __get__(self, instance, owner):
         if instance is None:
@@ -49,6 +53,37 @@ class Instance:
         return self.name
 
 
+def autofunc(f):
+    signature = inspect.signature(f)
+
+    @functools.wraps(f)
+    def func(*args):
+        typ = signature.return_annotation
+        name = f'{f.__name__}({", ".join(arg.name for arg in args)})'
+        return typ(name)
+
+    return check_types(func)
+
+
+def check_types(f):
+    signature = inspect.signature(f)
+    types = [
+        param.annotation for param in
+        signature.parameters.values()
+    ]
+
+    @functools.wraps(f)
+    def wrapper(*args):
+        for typ, arg in zip(types, args):
+            assert typ == arg.type
+
+        result = f(*args)
+        assert result.type == signature.return_annotation
+        return result
+
+    return wrapper
+
+
 def main():
     T = Type('T')
     t = T('t')
@@ -68,6 +103,24 @@ def main():
     print(S)
     print(S.type)
     assert S.type.universe == 2
+
+    A = Type('A')
+    B = Type('B')
+    C = Type('C')
+
+    @autofunc
+    def f(a: A) -> B: ...
+
+    @autofunc
+    def g(b: B) -> C: ...
+
+    @check_types
+    def composed(a: A) -> C:
+        return g(f(a))
+
+    c = composed(A('a'))
+    print(c)
+    assert c.type is C
 
 
 if __name__ == '__main__':
