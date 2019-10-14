@@ -1,5 +1,6 @@
 import functools
 import inspect
+from types import SimpleNamespace
 
 
 class TypeDescriptor:
@@ -165,18 +166,27 @@ def test_dependant_types():
     @autofunc
     def List(T: Type) -> Type: ...
 
-    def cons(T: Type):
+    def lists(T: Type):
         @autofunc
         def cons(t: T, lst: List(T)) -> List(T): ...
 
-        return cons
+        nil = List(T)('nil')
 
-    def nil(T: Type):
-        return List(T)('nil')
+        @autofunc
+        def head(lst: List(T)) -> T: ...
+
+        @autofunc
+        def tail(lst: List(T)) -> List(T): ...
+
+        @autofunc
+        def append(lst1: List(T), lst2: List(T)) -> List(T): ...
+
+        return SimpleNamespace(**locals())
 
     A = Type('A')
     a = A('a')
-    print(cons(A)(a, cons(A)(a, nil(A))))
+    L = lists(A)
+    print(L.head(L.tail(L.cons(a, L.append(List(A)('lst'), L.nil)))))
 
 
 if __name__ == '__main__':
