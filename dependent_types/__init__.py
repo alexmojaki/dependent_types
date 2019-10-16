@@ -149,10 +149,10 @@ def main():
     print(c)
     assert c.type is C
 
-    test_dependant_types()
+    test_dependent_types()
 
 
-def test_dependant_types():
+def test_dependent_types():
     """
     constant List   : Type → Type
 
