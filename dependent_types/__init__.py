@@ -53,6 +53,7 @@ class Type(BaseType, metaclass=TypeMeta):
         )
 
 class Arrow(Type): 
+
     def __init__(self, signature : inspect.Signature, *args, **kwargs):
         # TODO name from signature
         params = tuple( param.annotation 
@@ -63,7 +64,6 @@ class Arrow(Type):
         
         super().__init__(name=f" {params} -> {return_annotation}", value=value, *args, **kwargs) 
         self.signature = signature 
-
 
 
 class Instance:
@@ -83,17 +83,17 @@ class Instance:
 
 
 class ArrowInstance(Instance):
+
     def __call__(self, *args, **kwargs):
         self.raise_on_param_type_error(*args, **kwargs)
-        result = None
-        if self.value:
-            result = self.value(*args, **kwargs)
+        result = self.value(*args, **kwargs) if self.value else None
 
         if result is None:
             result = self.type.signature.return_annotation(f"{self.name}( *{args}, **{kwargs} )")
 
         self.raise_on_result_type_error(result)
         return result
+
 
     def raise_on_param_type_error(self, *args, **kwargs):
         bound = self.type.signature.bind(*args, **kwargs)
@@ -102,6 +102,7 @@ class ArrowInstance(Instance):
         for name, val in bound.arguments.items():
             expected_type = self.type.signature.parameters[name].annotation
             assert val.type == expected_type
+
 
     def raise_on_result_type_error(self, result):
         assert result.type == self.type.signature.return_annotation
@@ -184,8 +185,7 @@ def test_dependent_types():
         def cons(t: T, lst: List(T)) -> List(T): ...
 
         @arrow
-        def nil() -> List(T): 
-            return List(T)('nil')
+        def nil() -> List(T): ...
 
         @arrow
         def head(lst: List(T)) -> T: ...
@@ -204,6 +204,7 @@ def test_dependent_types():
     a = A('a')    
     L = lists(A)
 
+    print(L.nil)
     print(L.nil.type)
     assert L.nil().type == List(A)
 
