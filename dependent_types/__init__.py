@@ -39,8 +39,6 @@ class Type(BaseType, metaclass=TypeMeta):
         self.value = value
 
     def __call__(self, name, value=None):
-        if value is None:
-            value = FunctionApplication(self)
         result = Instance(self, name, value)
         result.type = self
         return result
@@ -107,16 +105,6 @@ class ArrowInstance(Instance):
 
     def raise_on_result_type_error(self, result):
         assert result.type == self.type.signature.return_annotation
-
-
-
-
-class FunctionApplication:
-    def __init__(self, *args):
-        self.args = args
-
-    def __eq__(self, other):
-        return type(self) == type(other) and self.args == other.args
 
 
 def arrow(f):
@@ -195,7 +183,9 @@ def test_dependent_types():
         @arrow
         def cons(t: T, lst: List(T)) -> List(T): ...
 
-        nil = List(T)('nil')
+        @arrow
+        def nil() -> List(T): 
+            return List(T)('nil')
 
         @arrow
         def head(lst: List(T)) -> T: ...
@@ -213,7 +203,11 @@ def test_dependent_types():
 
     a = A('a')    
     L = lists(A)
-    print(L.head(L.tail(L.cons(a, L.append(List(A)('lst'), L.nil)))))
+
+    print(L.nil.type)
+    assert L.nil().type == List(A)
+
+    print(L.head(L.tail(L.cons(a, L.append(List(A)('lst'), L.nil())))))
 
 
 if __name__ == '__main__':
