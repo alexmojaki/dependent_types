@@ -30,18 +30,18 @@ class TypeMeta(BaseType, type):
 class Type(BaseType, metaclass=TypeMeta):
     universe = 0
 
-    def __init__(self, name=None, *, expr=None, universe=None):
+    def __init__(self, name=None, *, value=None, universe=None):
         assert bool(name) ^ bool(universe)
         self.name = name
         if name:
             self.type = Type
         self.universe = universe
-        self.expr = expr
+        self.value = value
 
-    def __call__(self, name, expr=None):
-        if expr is None:
-            expr = FunctionApplication(self)
-        result = Instance(self, name, expr)
+    def __call__(self, name, value=None):
+        if value is None:
+            value = FunctionApplication(self)
+        result = Instance(self, name, value)
         result.type = self
         return result
 
@@ -51,15 +51,28 @@ class Type(BaseType, metaclass=TypeMeta):
         return (
                 isinstance(other, BaseType)
                 and self.universe == other.universe
-                and self.expr == other.expr
+                and self.value == other.value
         )
+
+class Arrow(Type): 
+    def __init__(self, signature : inspect.Signature, *args, **kwargs):
+        # TODO name from signature
+        params = tuple( param.annotation 
+            for param in signature.parameters.values() )
+        return_annotation = signature.return_annotation
+        
+        value = (params, signature.return_annotation)
+        
+        super().__init__(name=f" {params} -> {return_annotation}", value=value, *args, **kwargs) 
+        self.signature = signature 
+
 
 
 class Instance:
-    def __init__(self, typ, name, expr):
+    def __init__(self, typ, name, value):
         self.name = name
         self.type = typ
-        self.expr = expr
+        self.value = value
 
     def __repr__(self):
         return self.name
@@ -67,8 +80,35 @@ class Instance:
     def __eq__(self, other):
         return (
                 isinstance(other, Instance)
-                and self.expr == other.expr
+                and self.value == other.value
         )
+
+
+class ArrowInstance(Instance):
+    def __call__(self, *args, **kwargs):
+        self.raise_on_param_type_error(*args, **kwargs)
+        result = None
+        if self.value:
+            result = self.value(*args, **kwargs)
+
+        if result is None:
+            result = self.type.signature.return_annotation(f"{self.name}( *{args}, **{kwargs} )")
+
+        self.raise_on_result_type_error(result)
+        return result
+
+    def raise_on_param_type_error(self, *args, **kwargs):
+        bound = self.type.signature.bind(*args, **kwargs)
+        bound.apply_defaults()
+
+        for name, val in bound.arguments.items():
+            expected_type = self.type.signature.parameters[name].annotation
+            assert val.type == expected_type
+
+    def raise_on_result_type_error(self, result):
+        assert result.type == self.type.signature.return_annotation
+
+
 
 
 class FunctionApplication:
@@ -79,36 +119,11 @@ class FunctionApplication:
         return type(self) == type(other) and self.args == other.args
 
 
-def autofunc(f):
+def arrow(f):
     signature = inspect.signature(f)
+    f_type = Arrow(signature)
+    return ArrowInstance(f_type, f.__name__, f)
 
-    @functools.wraps(f)
-    def func(*args):
-        typ = signature.return_annotation
-        name = f'{f.__name__}({", ".join(arg.name for arg in args)})'
-        expr = FunctionApplication(f.__code__, *args)
-        return typ(name, expr=expr)
-
-    return check_types(func)
-
-
-def check_types(f):
-    signature = inspect.signature(f)
-    types = [
-        param.annotation for param in
-        signature.parameters.values()
-    ]
-
-    @functools.wraps(f)
-    def wrapper(*args):
-        for typ, arg in zip(types, args):
-            assert typ == arg.type
-
-        result = f(*args)
-        assert result.type == signature.return_annotation
-        return result
-
-    return wrapper
 
 
 def main():
@@ -135,17 +150,27 @@ def main():
     B = Type('B')
     C = Type('C')
 
-    @autofunc
+    @arrow
     def f(a: A) -> B: ...
 
-    @autofunc
+    @arrow
     def g(b: B) -> C: ...
 
-    @check_types
-    def composed(a: A) -> C:
-        return g(f(a))
 
-    c = composed(A('a'))
+    params = (inspect.Parameter("a", kind = inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=A),)
+    expected_sig = inspect.Signature( params, return_annotation=B)
+    print(f)
+    print(f.type.value)
+    print(Arrow( expected_sig ).value)
+    assert f.type == Arrow( expected_sig )
+    a = A("a")
+    f(a)
+
+    a = A("a")
+    b = f(a)
+    c = g(f(a))
+    print(b)
+    assert b.type is B
     print(c)
     assert c.type is C
 
@@ -163,28 +188,30 @@ def test_dependent_types():
     constant append : Π T : Type, List T → List T → List T
     """
 
-    @autofunc
+    @arrow
     def List(T: Type) -> Type: ...
 
     def lists(T: Type):
-        @autofunc
+        @arrow
         def cons(t: T, lst: List(T)) -> List(T): ...
 
         nil = List(T)('nil')
 
-        @autofunc
+        @arrow
         def head(lst: List(T)) -> T: ...
 
-        @autofunc
+        @arrow
         def tail(lst: List(T)) -> List(T): ...
 
-        @autofunc
+        @arrow
         def append(lst1: List(T), lst2: List(T)) -> List(T): ...
 
         return SimpleNamespace(**locals())
 
     A = Type('A')
-    a = A('a')
+    assert List(A).type == Type
+
+    a = A('a')    
     L = lists(A)
     print(L.head(L.tail(L.cons(a, L.append(List(A)('lst'), L.nil)))))
 
