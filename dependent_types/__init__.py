@@ -36,7 +36,7 @@ class Type(BaseType, metaclass=TypeMeta):
         if name:
             self.type = Type
         self.universe = universe
-        self.value = value
+        self.value = value or id(self)
 
     def __call__(self, name, value=None):
         result = Instance(self, name, value)
@@ -80,6 +80,7 @@ class Instance:
         return (
                 isinstance(other, Instance)
                 and self.value == other.value
+                and self.type == other.type
         )
 
 
@@ -95,7 +96,7 @@ class ArrowInstance(Instance):
                 *[f"{k}={v}" for k, v in kwargs.items()]
             ]
             name = f"{self.name}({', '.join(formatted_args)})"
-            result = self.type.signature.return_annotation(name)
+            result = self.type.signature.return_annotation(name, value=(self, args, kwargs))
 
         self.raise_on_result_type_error(result)
         return result
@@ -212,6 +213,18 @@ def test_dependent_types():
 
     assert str(L.head(L.tail(L.cons(a, L.append(List(A)('lst'), L.nil()))))) == \
         "head(tail(cons(a, append(lst, nil()))))"
+
+    @arrow
+    def List2(T: Type) -> Type: ...
+
+    B = Type('B')
+
+    assert List(A) == List(A)
+    assert List(B) == List(B)
+    assert List(A) != List(B)
+
+    assert List2(A) == List2(A)
+    assert List(A) != List2(A)
 
 
 if __name__ == '__main__':
