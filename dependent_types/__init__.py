@@ -1,5 +1,6 @@
 import inspect
 import types
+from inspect import Signature
 from types import SimpleNamespace
 
 
@@ -16,7 +17,7 @@ class BaseType:
 
     def __repr__(self):
         if self.universe == 0:
-            return "Type"
+            return self.__name__
         elif self.universe is None:
             return self.name
         else:
@@ -25,46 +26,6 @@ class BaseType:
 
 class TypeMeta(BaseType, type):
     pass
-
-
-class Type(BaseType, metaclass=TypeMeta):
-    universe = 0
-
-    def __init__(self, name=None, *, value=None, universe=None):
-        assert bool(name) ^ bool(universe)
-        self.name = name
-        if name:
-            self.type = Type
-        self.universe = universe
-        self.value = value or id(self)
-
-    def __call__(self, name, value=None):
-        result = Instance(self, name, value)
-        result.type = self
-        return result
-
-    type = TypeDescriptor()
-
-    def __eq__(self, other):
-        return (
-                isinstance(other, BaseType)
-                and self.universe == other.universe
-                and self.value == other.value
-        )
-
-
-class Arrow(Type):
-
-    def __init__(self, signature: inspect.Signature, *args, **kwargs):
-        # TODO name from signature
-        params = tuple(param.annotation
-                       for param in signature.parameters.values())
-        return_annotation = signature.return_annotation
-
-        value = (params, signature.return_annotation)
-
-        super().__init__(name=f"{params} -> {return_annotation}", value=value, *args, **kwargs)
-        self.signature = signature
 
 
 class Instance:
@@ -82,6 +43,48 @@ class Instance:
                 and self.value == other.value
                 and self.type == other.type
         )
+
+
+class Type(BaseType, metaclass=TypeMeta):
+    universe = 0
+    instance_class = Instance
+
+    def __init__(self, name=None, *, value=None, universe=None):
+        assert bool(name) ^ bool(universe)
+        self.name = name
+        if name:
+            self.type = type(self)
+        self.universe = universe
+        self.value = value or id(self)
+
+    def __call__(self, name, value=None):
+        result = self.instance_class(self, name, value)
+        result.type = self
+        return result
+
+    type = TypeDescriptor()
+
+    def __eq__(self, other):
+        return (
+                isinstance(other, BaseType)
+                and self.universe == other.universe
+                and self.value == other.value
+        )
+
+
+class Arrow(Type):
+    type = Type
+
+    def __init__(self, signature: inspect.Signature, *args, **kwargs):
+        # TODO name from signature
+        params = tuple(param.annotation
+                       for param in signature.parameters.values())
+        return_annotation = signature.return_annotation
+
+        value = (params, signature.return_annotation)
+
+        super().__init__(name=f"{params} -> {return_annotation}", value=value, *args, **kwargs)
+        self.signature = signature
 
 
 class ArrowInstance(Instance):
@@ -107,10 +110,13 @@ class ArrowInstance(Instance):
 
         for name, val in bound.arguments.items():
             expected_type = self.type.signature.parameters[name].annotation
-            assert val.type == expected_type
+            if val.type != expected_type:
+                raise TypeError(f"{val} has type {val.type} instead of {expected_type}")
 
     def raise_on_result_type_error(self, result):
-        assert result.type == self.type.signature.return_annotation
+        expected_type = self.type.signature.return_annotation
+        if expected_type is not Signature.empty:
+            assert result.type == expected_type
 
 
 def arrow(f):
