@@ -1,4 +1,3 @@
-import functools
 import inspect
 from types import SimpleNamespace
 
@@ -52,18 +51,19 @@ class Type(BaseType, metaclass=TypeMeta):
                 and self.value == other.value
         )
 
-class Arrow(Type): 
 
-    def __init__(self, signature : inspect.Signature, *args, **kwargs):
+class Arrow(Type):
+
+    def __init__(self, signature: inspect.Signature, *args, **kwargs):
         # TODO name from signature
-        params = tuple( param.annotation 
-            for param in signature.parameters.values() )
+        params = tuple(param.annotation
+                       for param in signature.parameters.values())
         return_annotation = signature.return_annotation
-        
+
         value = (params, signature.return_annotation)
-        
-        super().__init__(name=f" {params} -> {return_annotation}", value=value, *args, **kwargs) 
-        self.signature = signature 
+
+        super().__init__(name=f" {params} -> {return_annotation}", value=value, *args, **kwargs)
+        self.signature = signature
 
 
 class Instance:
@@ -94,7 +94,6 @@ class ArrowInstance(Instance):
         self.raise_on_result_type_error(result)
         return result
 
-
     def raise_on_param_type_error(self, *args, **kwargs):
         bound = self.type.signature.bind(*args, **kwargs)
         bound.apply_defaults()
@@ -102,7 +101,6 @@ class ArrowInstance(Instance):
         for name, val in bound.arguments.items():
             expected_type = self.type.signature.parameters[name].annotation
             assert val.type == expected_type
-
 
     def raise_on_result_type_error(self, result):
         assert result.type == self.type.signature.return_annotation
@@ -112,7 +110,6 @@ def arrow(f):
     signature = inspect.signature(f)
     f_type = Arrow(signature)
     return ArrowInstance(f_type, f.__name__, f)
-
 
 
 def main():
@@ -145,13 +142,12 @@ def main():
     @arrow
     def g(b: B) -> C: ...
 
-
-    params = (inspect.Parameter("a", kind = inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=A),)
-    expected_sig = inspect.Signature( params, return_annotation=B)
+    params = (inspect.Parameter("a", kind=inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=A),)
+    expected_sig = inspect.Signature(params, return_annotation=B)
     print(f)
     print(f.type.value)
-    print(Arrow( expected_sig ).value)
-    assert f.type == Arrow( expected_sig )
+    print(Arrow(expected_sig).value)
+    assert f.type == Arrow(expected_sig)
     a = A("a")
     f(a)
 
@@ -201,7 +197,7 @@ def test_dependent_types():
     A = Type('A')
     assert List(A).type == Type
 
-    a = A('a')    
+    a = A('a')
     L = lists(A)
 
     print(L.nil)
