@@ -1,4 +1,5 @@
-from dependent_types import Type, Instance, arrow
+from dependent_types.arrows import arrow
+from dependent_types.core import Type, Instance
 from dependent_types.utils import with_needed_parens
 
 
@@ -84,84 +85,3 @@ class OrInstance(BinaryBooleanPropInstance):
             name=f"elim({left}, {right})",
             value=(self.__class__, left, right),
         )
-
-
-def main():
-    assert Prop.type is Type
-    assert str(Prop) == "Prop"
-
-    p = Prop("p")
-    assert p.type is Prop
-    assert str(p) == "p"
-
-    q = Prop("q")
-    a = p & q
-    assert str(a) == "p & q"
-    assert a.value == (And, p, q)
-
-    hp = p("hp")
-    hq = q("hq")
-    assert hp.type is p
-    assert str(hp) == "hp"
-
-    ah = hp & hq
-    assert ah.type == p & q
-    assert str(ah) == "hp & hq"
-    assert ah.value == (AndInstance, hp, hq)
-
-    assert (hp | hq).type == p | q
-
-    @arrow
-    def and_comm(h: p & q) -> q & p:
-        return h.right & h.left
-
-    assert and_comm(hp & hq) == hq & hp
-
-    assert (hp | q).type == (p | q)
-    assert (p | hq).type == (p | q)
-    assert str(hp | q) == "hp | q()"
-    assert str(p | hq) == "p() | hq"
-
-    test_or_assoc()
-
-
-def test_or_assoc():
-    """
-    example : (p ∨ q) ∨ r -> p ∨ (q ∨ r) :=
-        assume h: (p ∨ q) ∨ r,
-        or.elim h
-            (assume hleft : p ∨ q,
-            or.elim hleft
-                (assume hp: p, or.intro_left (q ∨ r) hp)
-                (assume hq: q, or.intro_right p (or.intro_left r hq)))
-
-            (assume hr: r, or.intro_right p (or.intro_right q hr))
-    """
-    p = Prop("p")
-    q = Prop("q")
-    r = Prop("r")
-
-    goal = p | (q | r)
-
-    @arrow
-    def or_assoc(h: (p | q) | r) -> goal:
-        def if_p_or_q(hleft: p | q) -> goal:
-            def if_p(hp: p) -> goal:
-                return hp | (q | r)
-
-            def if_q(hq: q) -> goal:
-                return p | (hq | r)
-
-            return hleft.elim(if_p, if_q)
-
-        def if_r(hr: r) -> goal:
-            return p | (q | hr)
-
-        return h.elim(if_p_or_q, if_r)
-
-    result = or_assoc((p("hp") | q("hq")) | r("hr"))
-    assert result.type == goal
-    assert str(result) == "elim(elim(hp | (q | r)(), p() | (hq | r())), p() | (q() | hr))"
-
-
-main()
