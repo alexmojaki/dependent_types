@@ -1,4 +1,5 @@
 import inspect
+import types
 from types import SimpleNamespace
 
 
@@ -62,7 +63,7 @@ class Arrow(Type):
 
         value = (params, signature.return_annotation)
 
-        super().__init__(name=f" {params} -> {return_annotation}", value=value, *args, **kwargs)
+        super().__init__(name=f"{params} -> {return_annotation}", value=value, *args, **kwargs)
         self.signature = signature
 
 
@@ -89,7 +90,12 @@ class ArrowInstance(Instance):
         result = self.value(*args, **kwargs) if self.value else None
 
         if result is None:
-            result = self.type.signature.return_annotation(f"{self.name}( *{args}, **{kwargs} )")
+            formatted_args = [
+                *map(str, args),
+                *[f"{k}={v}" for k, v in kwargs.items()]
+            ]
+            name = f"{self.name}({', '.join(formatted_args)})"
+            result = self.type.signature.return_annotation(name)
 
         self.raise_on_result_type_error(result)
         return result
@@ -115,11 +121,11 @@ def arrow(f):
 def main():
     T = Type('T')
     t = T('t')
-    print(t)
-    print(T)
-    print(T.type)
-    print(T.type.type)
-    print(T.type.type.type)
+    assert str(t) == "t"
+    assert str(T) == "T"
+    assert str(Type) == "Type"
+    assert str(Type.type) == "Type(universe=1)"
+    assert str(Type.type.type) == "Type(universe=2)"
 
     assert t.type is T
     assert T.type is Type
@@ -128,8 +134,8 @@ def main():
     assert Type.type.type.universe == 2
 
     S = Type(universe=2)('S')
-    print(S)
-    print(S.type)
+    assert str(S) == "S"
+    assert str(S.type) == "Type(universe=2)"
     assert S.type.universe == 2
 
     A = Type('A')
@@ -144,19 +150,19 @@ def main():
 
     params = (inspect.Parameter("a", kind=inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=A),)
     expected_sig = inspect.Signature(params, return_annotation=B)
-    print(f)
-    print(f.type.value)
-    print(Arrow(expected_sig).value)
+
+    assert isinstance(f, ArrowInstance)
     assert f.type == Arrow(expected_sig)
-    a = A("a")
-    f(a)
+    assert f.type.value == ((A,), B)
+    assert isinstance(f.value, types.FunctionType)
+    assert f.name == "f"
 
     a = A("a")
     b = f(a)
-    c = g(f(a))
-    print(b)
+    c = g(b)
+    assert str(b) == "f(a)"
     assert b.type is B
-    print(c)
+    assert str(c) == "g(f(a))"
     assert c.type is C
 
     test_dependent_types()
@@ -200,11 +206,12 @@ def test_dependent_types():
     a = A('a')
     L = lists(A)
 
-    print(L.nil)
-    print(L.nil.type)
+    assert L.nil.name == "nil"
+    assert str(L.nil.type) == "() -> List(A)"
     assert L.nil().type == List(A)
 
-    print(L.head(L.tail(L.cons(a, L.append(List(A)('lst'), L.nil())))))
+    assert str(L.head(L.tail(L.cons(a, L.append(List(A)('lst'), L.nil()))))) == \
+        "head(tail(cons(a, append(lst, nil()))))"
 
 
 if __name__ == '__main__':
