@@ -39,8 +39,8 @@ def test_mul():
 
 
 def test_comparison():
-    assert (ZERO + 6) <= (ZERO +7)
-    assert not (ZERO + 10) <= (ZERO +7)
+    assert (ZERO + 6) <= (ZERO + 7)
+    assert not (ZERO + 10) <= (ZERO + 7)
 
     n = nat.Nat("n")
     m = n + 5
@@ -49,13 +49,12 @@ def test_comparison():
     assert not n >= m
 
 
-
 def test_variable_addition():
     n = nat.Nat("n")
     m = nat.Nat("m")
-    k = n+m
+    k = n + m
 
-    assert k.value == (None, nat.add, (n,m), {})
+    assert k.value == (None, nat.add, (n, m), {})
 
 
 def test_variable_multiplication():
@@ -63,4 +62,4 @@ def test_variable_multiplication():
     m = nat.Nat("m")
     k = n * m
 
-    assert k.value == (None, nat.mul, (n,m), {})
+    assert k.value == (None, nat.mul, (n, m), {})
