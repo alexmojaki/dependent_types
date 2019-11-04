@@ -33,8 +33,6 @@ class NatInstance(core.Instance):
                 return self_predecessor
 
         return None
-            
-
 
     def __add__(self, other):
         other = NatInstance.ensure_nat_instance(other)
@@ -48,12 +46,11 @@ class NatInstance(core.Instance):
                 return successor(self.predecessor + other)
 
             if other.predecessor:
-                return successor(self+ other.predecessor)
+                return successor(self + other.predecessor)
 
             return add(self, other)
-                
-        raise TypeError(f"Cannot resolve {self} + {other}")
 
+        raise TypeError(f"Cannot resolve {self} + {other}")
 
     def __mul__(self, other):
         other = NatInstance.ensure_nat_instance(other)
@@ -76,11 +73,9 @@ class NatInstance(core.Instance):
         elif other.predecessor:
             return self <= other.predecessor
         else:
-            return False # TODO return a PROPOSITION "self <= other" !!            
-        
+            return False  # TODO return a PROPOSITION "self <= other" !!
+
         raise TypeError(f"Cannot resolve {self} <= {other}")
-
-
 
 
 class NatType(core.Type):
@@ -95,10 +90,12 @@ ZERO = Nat("0", value=0)
 def successor(n: Nat) -> Nat:
     ...
 
-@arrows.arrow
-def add(n: Nat, m:Nat) -> Nat:
-    ...
 
 @arrows.arrow
-def mul(n: Nat, m:Nat) -> Nat:
+def add(n: Nat, m: Nat) -> Nat:
+    ...
+
+
+@arrows.arrow
+def mul(n: Nat, m: Nat) -> Nat:
     ...
