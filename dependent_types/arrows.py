@@ -15,8 +15,8 @@ class ArrowInstance(Instance):
                 *map(str, args),
                 *[f"{k}={v}" for k, v in kwargs.items()]
             ]
-            name = f"{self.name}({', '.join(formatted_args)})"            
-            result = self.type.signature.return_annotation(name, value=(result, self, args, kwargs))
+            name = f"{self.name}({', '.join(formatted_args)})"
+            result = self.type.signature.return_annotation(name, value=(self, args, kwargs))
 
         self.raise_on_result_type_error(result)
         return result

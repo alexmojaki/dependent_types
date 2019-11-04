@@ -11,7 +11,7 @@ def test_successor():
     ONE = nat.successor(ZERO)
     ONE_again = nat.successor(ZERO)
     assert ONE == ONE_again
-    print(ONE.value)
+    print(ONE)
 
 
 def test_add():
@@ -54,7 +54,7 @@ def test_variable_addition():
     m = nat.Nat("m")
     k = n + m
 
-    assert k.value == (None, nat.add, (n, m), {})
+    assert k.value == (nat.add, (n, m), {})
 
 
 def test_variable_multiplication():
@@ -62,4 +62,4 @@ def test_variable_multiplication():
     m = nat.Nat("m")
     k = n * m
 
-    assert k.value == (None, nat.mul, (n, m), {})
+    assert k.value == (nat.mul, (n, m), {})

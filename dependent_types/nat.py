@@ -27,7 +27,7 @@ class NatInstance(core.Instance):
     @property
     def predecessor(self):
         if self.value:
-            _, arr, args, kwargs = self.value
+            arr, args, kwargs = self.value
             if arr == successor:
                 (self_predecessor,) = args
                 return self_predecessor
