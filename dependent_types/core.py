@@ -43,7 +43,7 @@ class Type(BaseType, metaclass=TypeMeta):
     universe = 0
     instance_class = Instance
 
-    def __init__(self, name=None, *, value=None, universe=None):
+    def __init__(self, name=None, value=None, universe=None):
         assert bool(name) ^ bool(universe)
         self.name = name
         if name:

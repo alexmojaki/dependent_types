@@ -4,21 +4,6 @@ from inspect import Signature
 from dependent_types.core import Instance, Type
 
 
-class Arrow(Type):
-    type = Type
-
-    def __init__(self, signature: inspect.Signature, *args, **kwargs):
-        # TODO name from signature
-        params = tuple(param.annotation
-                       for param in signature.parameters.values())
-        return_annotation = signature.return_annotation
-
-        value = (params, signature.return_annotation)
-
-        super().__init__(name=f"{params} -> {return_annotation}", value=value, *args, **kwargs)
-        self.signature = signature
-
-
 class ArrowInstance(Instance):
 
     def __call__(self, *args, **kwargs):
@@ -30,8 +15,8 @@ class ArrowInstance(Instance):
                 *map(str, args),
                 *[f"{k}={v}" for k, v in kwargs.items()]
             ]
-            name = f"{self.name}({', '.join(formatted_args)})"
-            result = self.type.signature.return_annotation(name, value=(self, args, kwargs))
+            name = f"{self.name}({', '.join(formatted_args)})"            
+            result = self.type.signature.return_annotation(name, value=(result, self, args, kwargs))
 
         self.raise_on_result_type_error(result)
         return result
@@ -51,7 +36,25 @@ class ArrowInstance(Instance):
             assert result.type == expected_type
 
 
+
+class Arrow(Type):
+    type = Type
+    instance_class = ArrowInstance
+
+    def __init__(self, signature: inspect.Signature, *args, **kwargs):
+        params = tuple(param.annotation
+                       for param in signature.parameters.values())
+        return_annotation = signature.return_annotation
+
+        value = (params, signature.return_annotation)
+
+        super().__init__(name=f"{signature}", value=value, *args, **kwargs)
+        self.signature = signature
+
+
 def arrow(f):
     signature = inspect.signature(f)
     f_type = Arrow(signature)
-    return ArrowInstance(f_type, f.__name__, f)
+    return f_type(name=f.__name__, value=f)
+
+
