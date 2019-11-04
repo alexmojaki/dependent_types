@@ -28,11 +28,12 @@ class NatInstance(core.Instance):
     def predecessor(self):
         if self.value:
             _, arr, args, kwargs = self.value
-            (self_predecessor,) = args
-            return self_predecessor
-        else: 
-            return None
-            raise AttributeError(f"{self} has no predecessor defined")
+            if arr == successor:
+                (self_predecessor,) = args
+                return self_predecessor
+
+        return None
+            
 
 
     def __add__(self, other):
